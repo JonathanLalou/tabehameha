@@ -31,6 +31,19 @@
                 <input type="number" id="minTitleLength" min="3" max="50" value="7">
                 <small>If titles share this prefix length, the group takes it; else domain fallback is used.</small>
             </div>
+            <div class="form-group split-time-container" style="margin-top: 15px; border-top: 1px dashed #eef2f5; padding-top: 15px;">
+                <label for="vaultValue">🔒 Deeply Archiving Vault threshold:</label>
+                <div class="split-input-wrapper">
+                    <input type="number" id="vaultValue" min="1" value="4">
+                    <select id="vaultUnit">
+                        <option value="second">Seconds</option>
+                        <option value="minute">Minutes</option>
+                        <option value="hour" selected>Hours</option>
+                        <option value="day">Days</option>
+                    </select>
+                </div>
+                <small>Tabs stagnant beyond this point have their metrics securely cached, and the tab is terminated to free memory.</small>
+            </div>
         </section>
 
         <section class="card">

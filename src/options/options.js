@@ -11,9 +11,16 @@ function saveOptions() {
 
   console.log(`[tabehameha] Options saving triggered: ${delayValue} ${delayUnit}(s) threshold.`);
 
+  // Add these targeting rows inside saveOptions()
+  const vaultValue = parseInt(document.getElementById('vaultValue').value, 10) || 4;
+  const vaultUnit = document.getElementById('vaultUnit').value;
+
+  // Include vaultValue and vaultUnit into your chrome.storage.sync.set schema object
   chrome.storage.sync.set({
     delayValue,
     delayUnit,
+    vaultValue,
+    vaultUnit,
     minTitleLength,
     collapseGroups,
     crossWindow,

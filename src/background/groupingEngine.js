@@ -54,11 +54,13 @@ export async function blastTabClutter() {
   const executionTime = new Date();
   const now = executionTime.getTime();
   
-  console.log(`[tabehameha] [${executionTime.toISOString()}] 🚀 Initiating autonomous clustering sweep pass...`);
-  
+  console.log(`[tabehameha] [${executionTime.toISOString()}] 🚀 Initiating autonomous clustering & vaulting pass...`);
+
   const settings = await chrome.storage.sync.get({
     delayValue: 60,
     delayUnit: 'minute',
+    vaultValue: 4, // Default: Vault after 4 hours
+    vaultUnit: 'hour',
     excludeHosts: '',
     hostAliases: '',
     crossWindow: false,
@@ -68,17 +70,26 @@ export async function blastTabClutter() {
     collapseGroups: true
   });
 
-  // Ensure values are parsed cleanly as accurate base-10 integers
+  // Calculate Grouping Threshold
   const delayValueParsed = parseInt(settings.delayValue, 10) || 60;
-  let unitInMs = 60 * 1000; 
-  if (settings.delayUnit === 'second') unitInMs = 1000;
-  else if (settings.delayUnit === 'hour') unitInMs = 60 * 60 * 1000;
-  else if (settings.delayUnit === 'day') unitInMs = 24 * 60 * 60 * 1000;
+  let groupUnitInMs = 60 * 1000;
+  if (settings.delayUnit === 'second') groupUnitInMs = 1000;
+  else if (settings.delayUnit === 'hour') groupUnitInMs = 60 * 60 * 1000;
+  else if (settings.delayUnit === 'day') groupUnitInMs = 24 * 60 * 60 * 1000;
+  const groupDelayMs = delayValueParsed * groupUnitInMs;
+  const groupCutoff = now - groupDelayMs;
 
-  const totalDelayMs = delayValueParsed * unitInMs;
-  const cutoffTime = now - totalDelayMs;
+  // Calculate Vaulting Threshold
+  const vaultValueParsed = parseInt(settings.vaultValue, 10) || 4;
+  let vaultUnitInMs = 60 * 1000;
+  if (settings.vaultUnit === 'second') vaultUnitInMs = 1000;
+  else if (settings.vaultUnit === 'minute') vaultUnitInMs = 60 * 1000;
+  else if (settings.vaultUnit === 'hour') vaultUnitInMs = 60 * 60 * 1000;
+  else if (settings.vaultUnit === 'day') vaultUnitInMs = 24 * 60 * 60 * 1000;
+  const vaultDelayMs = vaultValueParsed * vaultUnitInMs;
+  const vaultCutoff = now - vaultDelayMs;
 
-  console.log(`[tabehameha] [${executionTime.toISOString()}] Configured Threshold: Blast tabs inactive for > ${delayValueParsed} ${settings.delayUnit}(s) (${totalDelayMs} ms). Cutoff absolute timestamp: ${cutoffTime}`);
+  console.log(`[tabehameha] Group Threshold: > ${delayValueParsed} ${settings.delayUnit}(s). Vault Threshold: > ${vaultValueParsed} ${settings.vaultUnit}(s).`);
 
   const exclusions = settings.excludeHosts.split(/[\n,]+/).map(h => h.trim().toLowerCase()).filter(h => h.length > 0);
   const aliasesMap = {};
@@ -93,43 +104,68 @@ export async function blastTabClutter() {
 
   const tabs = await chrome.tabs.query({});
   const buckets = {};
+  const tabsToVault = [];
   let scannedCount = 0;
-  let eligibleCount = 0;
+  let eligibleGroupCount = 0;
 
-  tabs.forEach(tab => {
+  for (const tab of tabs) {
     scannedCount++;
-    if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) return;
-    if (tab.active) return;
-    
-    // Fallback safely to current run time if lastAccessed metadata isn't initialized yet
+    if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) continue;
+    if (tab.active) continue;
+    if (tab.pinned && !settings.includePinned) continue;
+
     const lastAccessed = tab.lastAccessed || now;
-    const idleDurationMs = now - lastAccessed;
-
-    if (lastAccessed > cutoffTime) {
-      // Debug statement to show exactly why a tab is discarded
-      console.log(`[tabehameha] Tab ID ${tab.id} ("${tab.title}") is safe. Idle duration: ${Math.round(idleDurationMs / 1000)}s (Required: ${totalDelayMs / 1000}s)`);
-      return;
-    }
-    if (tab.pinned && !settings.includePinned) return;
-    if (tab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE && !settings.regroupExisting) return;
-
     const normHost = getNormalizedHost(tab.url, aliasesMap);
-    if (!normHost) return;
-    if (exclusions.some(exc => normHost === exc || normHost.endsWith('.' + exc))) return;
+    if (!normHost) continue;
+    if (exclusions.some(exc => normHost === exc || normHost.endsWith('.' + exc))) continue;
 
-    eligibleCount++;
-    const winKey = settings.crossWindow ? 'global' : tab.windowId;
-    const incognitoKey = tab.incognito ? 'private' : 'standard';
+    // CRITICAL CRITERIA 1: Check deep inactivity for Vault Archiving first
+    if (lastAccessed <= vaultCutoff) {
+      tabsToVault.push({
+        id: tab.id,
+        url: tab.url,
+        title: tab.title || tab.url,
+        favIconUrl: tab.favIconUrl || '',
+        host: normHost,
+        vaultedAt: now
+      });
+      continue;
+    }
 
-    if (!buckets[winKey]) buckets[winKey] = {};
-    if (!buckets[winKey][incognitoKey]) buckets[winKey][incognitoKey] = {};
-    if (!buckets[winKey][incognitoKey][normHost]) buckets[winKey][incognitoKey][normHost] = [];
+    // CRITERIA 2: Check standard intermediate inactivity for Tab Grouping
+    if (lastAccessed <= groupCutoff) {
+      if (tab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE && !settings.regroupExisting) continue;
 
-    buckets[winKey][incognitoKey][normHost].push(tab);
-  });
+      eligibleGroupCount++;
+      const winKey = settings.crossWindow ? 'global' : tab.windowId;
+      const incognitoKey = tab.incognito ? 'private' : 'standard';
 
-  console.log(`[tabehameha] [${executionTime.toISOString()}] Scanned ${scannedCount} total tabs. Found ${eligibleCount} idle tabs matching threshold constraints.`);
+      if (!buckets[winKey]) buckets[winKey] = {};
+      if (!buckets[winKey][incognitoKey]) buckets[winKey][incognitoKey] = {};
+      if (!buckets[winKey][incognitoKey][normHost]) buckets[winKey][incognitoKey][normHost] = [];
 
+      buckets[winKey][incognitoKey][normHost].push(tab);
+    }
+  }
+
+  // EXECUTE VAULT ARCHIVING PASS
+  if (tabsToVault.length > 0) {
+    console.log(`[tabehameha] Found ${tabsToVault.length} deeply idle tab(s) to vault.`);
+    const storageData = await chrome.storage.local.get({ vaultStack: [] });
+    let updatedStack = [...tabsToVault, ...storageData.vaultStack];
+
+    // Cap memory structure bounds to 500 records to prevent bloating sync profile channels
+    if (updatedStack.length > 500) updatedStack = updatedStack.slice(0, 500);
+
+    await chrome.storage.local.set({ vaultStack: updatedStack });
+
+    // Safely remove the original tabs to instantly liberate RAM allocations
+    const tabIdsToClose = tabsToVault.map(t => t.id);
+    await chrome.tabs.remove(tabIdsToClose);
+    console.log(`[tabehameha] Successfully archived metrics and terminated ${tabIdsToClose.length} bloated idle tabs.`);
+  }
+
+  // EXECUTE STANDARD GROUPING SWEEP PASS
   for (const winKey of Object.keys(buckets)) {
     for (const incognitoKey of Object.keys(buckets[winKey])) {
       for (const host of Object.keys(buckets[winKey][incognitoKey])) {
@@ -159,9 +195,7 @@ export async function blastTabClutter() {
             if (settings.crossWindow) {
               for (const tab of matchingTabs) {
                 if (tab.windowId !== matchedGroup.windowId) {
-                  try {
-                    await chrome.tabs.move(tab.id, { windowId: matchedGroup.windowId, index: -1 });
-                  } catch (e) {}
+                  try { await chrome.tabs.move(tab.id, { windowId: matchedGroup.windowId, index: -1 }); } catch (e) {}
                 }
               }
             }
@@ -171,20 +205,13 @@ export async function blastTabClutter() {
             if (settings.crossWindow) {
               for (const tab of matchingTabs) {
                 if (tab.windowId !== targetWindowId) {
-                  try {
-                    await chrome.tabs.move(tab.id, { windowId: targetWindowId, index: -1 });
-                  } catch (e) {}
+                  try { await chrome.tabs.move(tab.id, { windowId: targetWindowId, index: -1 }); } catch (e) {}
                 }
               }
             }
-
             groupId = await chrome.tabs.group({ tabIds: tabIds });
-
             const freshColor = await getDistinctColor();
-            await chrome.tabGroups.update(groupId, {
-              title: targetTitle,
-              color: freshColor
-            });
+            await chrome.tabGroups.update(groupId, { title: targetTitle, color: freshColor });
           }
 
           await chrome.tabGroups.update(groupId, { collapsed: settings.collapseGroups });
@@ -195,5 +222,5 @@ export async function blastTabClutter() {
       }
     }
   }
-  console.log(`[tabehameha] [${executionTime.toISOString()}] 🏁 Cluster sweep pass completed.`);
+  console.log(`[tabehameha] [${executionTime.toISOString()}] 🏁 Cluster & Vault sweep pass completed.`);
 }
