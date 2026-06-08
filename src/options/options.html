@@ -1,65 +1,74 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>tabehameha — Settings</title>
-  <link rel="stylesheet" href="options.css">
+    <meta charset="UTF-8">
+    <title>tabehameha — Settings</title>
+    <link rel="stylesheet" href="options.css">
 </head>
 <body>
-  <div class="container">
+<div class="container">
     <header>
-      <h1>⚡ tabehameha</h1>
-      <p class="subtitle">Autonomous Tab Clustering Engine</p>
+        <h1>⚡ tabehameha</h1>
+        <p class="subtitle">Autonomous Tab Clustering Engine</p>
     </header>
     <main>
-      <section class="card">
-        <h2>⏱️ Timing Thresholds</h2>
-        <div class="form-group">
-          <label for="delayMinutes">Blast idle tabs after (Minutes):</label>
-          <input type="number" id="delayMinutes" min="1" max="10080" value="60">
+        <section class="card">
+            <h2>⏱️ Timing Thresholds</h2>
+            <div class="form-group split-time-container">
+                <label for="delayValue">Blast idle tabs after they are inactive for:</label>
+                <div class="split-input-wrapper">
+                    <input type="number" id="delayValue" min="1" value="60">
+                    <select id="delayUnit">
+                        <option value="second">Seconds</option>
+                        <option value="minute" selected>Minutes</option>
+                        <option value="hour">Hours</option>
+                        <option value="day">Days</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="minTitleLength">Minimum matching title character threshold:</label>
+                <input type="number" id="minTitleLength" min="3" max="50" value="7">
+                <small>If titles share this prefix length, the group takes it; else domain fallback is used.</small>
+            </div>
+        </section>
+        <section class="card">
+            <h2>⚙️ Behavior & Scope Controls</h2>
+            <div class="checkbox-group">
+                <input type="checkbox" id="crossWindow">
+                <label for="crossWindow">Consolidate clusters across different windows</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="includePinned">
+                <label for="includePinned">Include pinned tabs in automated grouping cycles</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="regroupExisting">
+                <label for="regroupExisting">Allow re-grouping of tabs that are already grouped</label>
+            </div>
+            <div class="checkbox-group">
+                <input type="checkbox" id="ungroupOnAccess">
+                <label for="ungroupOnAccess">Extract tab from group when clicked/accessed</label>
+            </div>
+        </section>
+        <section class="card">
+            <h2>🚫 Domain Exclusions</h2>
+            <label for="excludeHosts">Hosts to exclude completely (one domain per line):</label>
+            <textarea id="excludeHosts" placeholder="github.com&#10;localhost" rows="3"></textarea>
+        </section>
+        <section class="card">
+            <h2>🔗 Domain Consolidation Maps</h2>
+            <label for="hostAliases">Map custom hosts together into the same primary cluster:</label>
+            <textarea id="hostAliases" placeholder="cnn.us -> cnn.com&#10;edition.cnn.com -> cnn.com"
+                      rows="3"></textarea>
+            <small>Format: <code>source-domain -> target-domain</code></small>
+        </section>
+        <div class="actions">
+            <button id="saveBtn" class="btn primary">Save Changes</button>
+            <span id="statusMsg" class="status-msg"></span>
         </div>
-        <div class="form-group">
-          <label for="minTitleLength">Minimum matching title character threshold:</label>
-          <input type="number" id="minTitleLength" min="3" max="50" value="7">
-          <small>If titles share this prefix length, the group takes it; else domain fallback is used.</small>
-        </div>
-      </section>
-      <section class="card">
-        <h2>⚙️ Behavior & Scope Controls</h2>
-        <div class="checkbox-group">
-          <input type="checkbox" id="crossWindow">
-          <label for="crossWindow">Consolidate clusters across different windows</label>
-        </div>
-        <div class="checkbox-group">
-          <input type="checkbox" id="includePinned">
-          <label for="includePinned">Include pinned tabs in automated grouping cycles</label>
-        </div>
-        <div class="checkbox-group">
-          <input type="checkbox" id="regroupExisting">
-          <label for="regroupExisting">Allow re-grouping of tabs that are already grouped</label>
-        </div>
-        <div class="checkbox-group">
-          <input type="checkbox" id="ungroupOnAccess">
-          <label for="ungroupOnAccess">Extract tab from group when clicked/accessed</label>
-        </div>
-      </section>
-      <section class="card">
-        <h2>🚫 Domain Exclusions</h2>
-        <label for="excludeHosts">Hosts to exclude completely (one domain per line):</label>
-        <textarea id="excludeHosts" placeholder="github.com&#10;localhost" rows="3"></textarea>
-      </section>
-      <section class="card">
-        <h2>🔗 Domain Consolidation Maps</h2>
-        <label for="hostAliases">Map custom hosts together into the same primary cluster:</label>
-        <textarea id="hostAliases" placeholder="cnn.us -> cnn.com&#10;edition.cnn.com -> cnn.com" rows="3"></textarea>
-        <small>Format: <code>source-domain -> target-domain</code></small>
-      </section>
-      <div class="actions">
-        <button id="saveBtn" class="btn primary">Save Changes</button>
-        <span id="statusMsg" class="status-msg"></span>
-      </div>
     </main>
-  </div>
-  <script src="options.js"></script>
+</div>
+<script src="options.js"></script>
 </body>
 </html>

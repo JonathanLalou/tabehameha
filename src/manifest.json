@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "tabehameha",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "[Hackathon2026] Blasts tab clutter away by automatically grouping inactive tabs by domain or common title prefixes.",
   "permissions": [
     "tabs",

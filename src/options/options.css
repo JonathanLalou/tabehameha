@@ -13,6 +13,23 @@ header h1 { font-size: 2.2rem; margin: 0; color: #1a1a2e; font-weight: 800; }
 .card h2 { font-size: 1.15rem; margin-top: 0; color: #1a1a2e; border-bottom: 2px solid #f4f6f9; padding-bottom: 10px; }
 .form-group { margin-bottom: 18px; }
 label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.95rem; }
+
+.split-input-wrapper {
+  display: flex;
+  gap: 12px;
+}
+.split-input-wrapper input[type="number"] {
+  flex: 2;
+}
+.split-input-wrapper select {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  background-color: #fafbfc;
+}
+
 input[type="number"], textarea { width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 0.95rem; box-sizing: border-box; background-color: #fafbfc; }
 textarea { font-family: monospace; resize: vertical; }
 small { display: block; color: #6c757d; margin-top: 5px; font-size: 0.85rem; }
