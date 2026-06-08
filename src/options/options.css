@@ -35,7 +35,7 @@ textarea { font-family: monospace; resize: vertical; }
 small { display: block; color: #6c757d; margin-top: 5px; font-size: 0.85rem; }
 .checkbox-group { display: flex; align-items: center; margin-bottom: 14px; }
 .checkbox-group input { margin-right: 12px; transform: scale(1.15); cursor: pointer; }
-.checkbox-group label { font-weight: 500; cursor: pointer; }
+.checkbox-group label { font-weight: 500; cursor: pointer; margin-bottom: 0; }
 .actions { display: flex; align-items: center; gap: 15px; }
 .btn { padding: 12px 28px; font-size: 1rem; font-weight: 600; border-radius: 6px; border: none; cursor: pointer; }
 .btn.primary { background-color: #4a90e2; color: white; }

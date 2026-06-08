@@ -1,33 +1,44 @@
+// src/background/background.js
+
 import { blastTabClutter } from './groupingEngine.js';
 
-chrome.runtime.onInstalled.addListener(async () => {
+// Setup background alarms
+chrome.runtime.onInstalled.addListener(() => {
   console.log("⚡ [tabehameha] Background runtime installation cycle complete.");
-  try {
-    await chrome.alarms.create("tabehameha-check-alarm", { periodInMinutes: 1 });
-    console.log("[tabehameha] Recurrent 1-minute tracking interval alarm successfully registered.");
-  } catch (err) {
-    console.error("[tabehameha] Failed to spin up background execution alarm:", err);
-  }
+  chrome.alarms.create('tabehamehaSweepAlarm', { periodInMinutes: 1 });
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === "tabehameha-check-alarm") {
-    console.log("[tabehameha] Alarm event fired. Initiating autonomous clustering pass.");
+  if (alarm.name === 'tabehamehaSweepAlarm') {
     blastTabClutter();
   }
 });
 
-chrome.tabs.onActivated.addListener(async (activeInfo) => {
+// CORE FIX: Unified Auto-Extraction Engine
+async function handleTabExtraction(tabId) {
   try {
-    const settings = await chrome.storage.sync.get({ ungroupOnAccess: false });
-    if (!settings.ungroupOnAccess) return;
+    const settings = await chrome.storage.sync.get({ extractOnAccess: false });
+    if (!settings.extractOnAccess) return;
 
-    const tab = await chrome.tabs.get(activeInfo.tabId);
-    if (tab && tab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE) {
-      console.log(`[tabehameha] Tab ID ${tab.id} accessed by user. Extracting from current group context due to direct access rule.`);
-      await chrome.tabs.ungroup(tab.id);
+    const tab = await chrome.tabs.get(tabId);
+    // If the active tab is assigned to a group, kick it out!
+    if (tab && tab.active && tab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE) {
+      console.log(`[tabehameha] Extracting Tab ID ${tabId} ("${tab.title}") due to direct user access.`);
+      await chrome.tabs.ungroup(tabId);
     }
   } catch (err) {
-    console.error("[tabehameha] Tracking context update failure during extraction step:", err);
+    // Fail silently if tab was closed rapidly
+  }
+}
+
+// Fire when active tab changes inside a window
+chrome.tabs.onActivated.addListener((activeInfo) => {
+  handleTabExtraction(activeInfo.tabId);
+});
+
+// Fire when a tab updates (e.g. finishes loading, is focused across windows, etc.)
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === 'complete' || tab.active) {
+    handleTabExtraction(tabId);
   }
 });

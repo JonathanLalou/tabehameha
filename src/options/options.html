@@ -32,37 +32,49 @@
                 <small>If titles share this prefix length, the group takes it; else domain fallback is used.</small>
             </div>
         </section>
+
         <section class="card">
             <h2>⚙️ Behavior & Scope Controls</h2>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="collapseGroups">
+                <label for="collapseGroups">Collapse groups automatically when clustered</label>
+            </div>
+
             <div class="checkbox-group">
                 <input type="checkbox" id="crossWindow">
                 <label for="crossWindow">Consolidate clusters across different windows</label>
             </div>
+
             <div class="checkbox-group">
                 <input type="checkbox" id="includePinned">
                 <label for="includePinned">Include pinned tabs in automated grouping cycles</label>
             </div>
+
             <div class="checkbox-group">
                 <input type="checkbox" id="regroupExisting">
                 <label for="regroupExisting">Allow re-grouping of tabs that are already grouped</label>
             </div>
+
             <div class="checkbox-group">
-                <input type="checkbox" id="ungroupOnAccess">
-                <label for="ungroupOnAccess">Extract tab from group when clicked/accessed</label>
+                <input type="checkbox" id="extractOnAccess">
+                <label for="extractOnAccess">Extract tab from group when clicked/accessed</label>
             </div>
         </section>
+
         <section class="card">
             <h2>🚫 Domain Exclusions</h2>
             <label for="excludeHosts">Hosts to exclude completely (one domain per line):</label>
             <textarea id="excludeHosts" placeholder="github.com&#10;localhost" rows="3"></textarea>
         </section>
+
         <section class="card">
             <h2>🔗 Domain Consolidation Maps</h2>
             <label for="hostAliases">Map custom hosts together into the same primary cluster:</label>
-            <textarea id="hostAliases" placeholder="cnn.us -> cnn.com&#10;edition.cnn.com -> cnn.com"
-                      rows="3"></textarea>
+            <textarea id="hostAliases" placeholder="cnn.us -> cnn.com&#10;edition.cnn.com -> cnn.com" rows="3"></textarea>
             <small>Format: <code>source-domain -> target-domain</code></small>
         </section>
+
         <div class="actions">
             <button id="saveBtn" class="btn primary">Save Changes</button>
             <span id="statusMsg" class="status-msg"></span>

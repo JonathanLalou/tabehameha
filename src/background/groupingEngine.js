@@ -1,15 +1,13 @@
+// src/background/groupingEngine.js
+
 const CHROME_COLORS = ['grey', 'blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange'];
 
 export function getNormalizedHost(urlStr, hostAliases) {
   try {
     const url = new URL(urlStr);
     let host = url.hostname.toLowerCase();
-    if (host.startsWith('www.')) {
-      host = host.substring(4);
-    }
-    if (hostAliases && hostAliases[host]) {
-      return hostAliases[host].toLowerCase();
-    }
+    if (host.startsWith('www.')) host = host.substring(4);
+    if (hostAliases && hostAliases[host]) return hostAliases[host].toLowerCase();
     return host;
   } catch (e) {
     return null;
@@ -22,19 +20,14 @@ export function getLongestCommonPrefix(strings) {
   const first = sorted[0];
   const last = sorted[sorted.length - 1];
   let i = 0;
-  while (i < first.length && first.charAt(i) === last.charAt(i)) {
-    i++;
-  }
+  while (i < first.length && first.charAt(i) === last.charAt(i)) i++;
   return first.substring(0, i).trim();
 }
 
 export function determineGroupTitle(tabs, domain, minTitleLength) {
   const titles = tabs.map(t => t.title || '');
   const prefix = getLongestCommonPrefix(titles);
-  if (prefix && prefix.length >= minTitleLength) {
-    console.log(`[tabehameha] Title Prefix Match Found: "${prefix}" (Length: ${prefix.length})`);
-    return prefix;
-  }
+  if (prefix && prefix.length >= minTitleLength) return prefix;
   return domain;
 }
 
@@ -44,9 +37,7 @@ export async function getDistinctColor() {
     const usedColors = existingGroups.map(g => g.color);
     const colorCounts = {};
     CHROME_COLORS.forEach(c => colorCounts[c] = 0);
-    usedColors.forEach(c => {
-      if (colorCounts[c] !== undefined) colorCounts[c]++;
-    });
+    usedColors.forEach(c => { if (colorCounts[c] !== undefined) colorCounts[c]++; });
     let bestColor = CHROME_COLORS[0];
     let minCount = Infinity;
     for (const color of CHROME_COLORS) {
@@ -57,7 +48,6 @@ export async function getDistinctColor() {
     }
     return bestColor;
   } catch (e) {
-    console.error("[tabehameha] Error selecting distinct color, fallback to random:", e);
     return CHROME_COLORS[Math.floor(Math.random() * CHROME_COLORS.length)];
   }
 }
@@ -73,10 +63,10 @@ export async function blastTabClutter() {
     crossWindow: false,
     includePinned: false,
     regroupExisting: false,
-    minTitleLength: 7
+    minTitleLength: 7,
+    collapseGroups: true // New configuration property
   });
 
-  // Calculate dynamic timing thresholds across variable time units
   let unitInMs = 60 * 1000;
   if (settings.delayUnit === 'second') unitInMs = 1000;
   else if (settings.delayUnit === 'hour') unitInMs = 60 * 60 * 1000;
@@ -86,64 +76,34 @@ export async function blastTabClutter() {
   const now = Date.now();
   const cutoffTime = now - totalDelayMs;
 
-  console.log(`[tabehameha] Configuration Loaded: Delay threshold is ${settings.delayValue} ${settings.delayUnit}(s) (${totalDelayMs}ms)`);
-
-  const exclusions = settings.excludeHosts
-    .split(/[\n,]+/)
-    .map(h => h.trim().toLowerCase())
-    .filter(h => h.length > 0);
-
+  const exclusions = settings.excludeHosts.split(/[\n,]+/).map(h => h.trim().toLowerCase()).filter(h => h.length > 0);
   const aliasesMap = {};
   settings.hostAliases.split(/[\n;]+/).forEach(line => {
     const parts = line.split('->');
     if (parts.length === 2) {
       const aliasPart = parts[0].trim().toLowerCase();
       const targetPart = parts[1].trim().toLowerCase();
-      if (aliasPart && targetPart) {
-        aliasesMap[aliasPart] = targetPart;
-        if (aliasPart.startsWith('www.')) aliasesMap[aliasPart.substring(4)] = targetPart;
-        else aliasesMap[`www.${aliasPart}`] = targetPart;
-      }
+      if (aliasPart && targetPart) aliasesMap[aliasPart] = targetPart;
     }
   });
 
   const tabs = await chrome.tabs.query({});
   const buckets = {};
-  let checkedCount = 0;
-  let eligibleCount = 0;
 
   tabs.forEach(tab => {
-    checkedCount++;
-    if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) {
-      return;
-    }
-    if (tab.active) {
-      console.log(`[tabehameha] Skipping Tab ID ${tab.id} ("${tab.title}"): Currently active tab.`);
-      return;
-    }
+    if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) return;
+    if (tab.active) return;
 
     const lastAccessed = tab.lastAccessed || now;
-    if (lastAccessed > cutoffTime) {
-      return;
-    }
-    if (tab.pinned && !settings.includePinned) {
-      console.log(`[tabehameha] Skipping Tab ID ${tab.id}: Pinned and includePinned option is false.`);
-      return;
-    }
-    if (tab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE && !settings.regroupExisting) {
-      return;
-    }
+    if (lastAccessed > cutoffTime) return;
+    if (tab.pinned && !settings.includePinned) return;
+    if (tab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE && !settings.regroupExisting) return;
 
     const normHost = getNormalizedHost(tab.url, aliasesMap);
     if (!normHost) return;
 
-    const isExcluded = exclusions.some(exc => normHost === exc || normHost.endsWith('.' + exc));
-    if (isExcluded) {
-      console.log(`[tabehameha] Skipping Tab ID ${tab.id}: Domain "${normHost}" matches exclusion filters.`);
-      return;
-    }
+    if (exclusions.some(exc => normHost === exc || normHost.endsWith('.' + exc))) return;
 
-    eligibleCount++;
     const winKey = settings.crossWindow ? 'global' : tab.windowId;
     const incognitoKey = tab.incognito ? 'private' : 'standard';
 
@@ -154,15 +114,13 @@ export async function blastTabClutter() {
     buckets[winKey][incognitoKey][normHost].push(tab);
   });
 
-  console.log(`[tabehameha] Scanned ${checkedCount} open tabs. Found ${eligibleCount} idle candidates matching parameters.`);
-
   for (const winKey of Object.keys(buckets)) {
     for (const incognitoKey of Object.keys(buckets[winKey])) {
       for (const host of Object.keys(buckets[winKey][incognitoKey])) {
         const matchingTabs = buckets[winKey][incognitoKey][host];
         if (matchingTabs.length < 2) continue;
 
-        const tabIds = matchingTabs.map(t => t.id);
+        let tabIds = matchingTabs.map(t => t.id);
         const targetTitle = determineGroupTitle(matchingTabs, host, settings.minTitleLength);
 
         try {
@@ -182,31 +140,44 @@ export async function blastTabClutter() {
           }
 
           if (matchedGroup) {
-            console.log(`[tabehameha] Merging ${tabIds.length} tabs into existing cluster group "${targetTitle}" (ID: ${matchedGroup.id})`);
-            groupId = await chrome.tabs.group({ tabIds: tabIds, groupId: matchedGroup.id });
-          } else {
-            console.log(`[tabehameha] Creating new distinct cluster group for host context: "${targetTitle}"`);
-
-            // FIXED: Omit windowId completely here. Passing tabIds alone creates a fresh group natively context-bound.
-            groupId = await chrome.tabs.group({ tabIds: tabIds });
-
-            // If crossWindow option is active and we are dealing with multiple windows under a 'global' bucket,
-            // we can optionally move the freshly generated group to a uniform window, but chrome.tabs.group itself handle creation perfectly.
-            if (winKey !== 'global') {
-              try {
-                await chrome.tabGroups.move(groupId, { windowId: parseInt(winKey), index: -1 });
-              } catch (moveErr) {
-                // If tabs are already in this window, moving might log a redundant warning; catch gracefully
+            // FIX MULTI-WINDOW: If crossWindow is true, explicitly move tabs to the target group's window first
+            if (settings.crossWindow) {
+              for (const tab of matchingTabs) {
+                if (tab.windowId !== matchedGroup.windowId) {
+                  try {
+                    await chrome.tabs.move(tab.id, { windowId: matchedGroup.windowId, index: -1 });
+                  } catch (e) { console.warn("[tabehameha] Failed pre-moving cross-window tab safety pass", e); }
+                }
               }
             }
+            groupId = await chrome.tabs.group({ tabIds: tabIds, groupId: matchedGroup.id });
+          } else {
+            // FIX MULTI-WINDOW: If creating a fresh group globally across multiple windows,
+            // explicitly consolidate all target tabs into the first tab's window prior to grouping
+            // so window-destruction closures won't interrupt the Chrome internal tab tracker.
+            const targetWindowId = matchingTabs[0].windowId;
+            if (settings.crossWindow) {
+              for (const tab of matchingTabs) {
+                if (tab.windowId !== targetWindowId) {
+                  try {
+                    await chrome.tabs.move(tab.id, { windowId: targetWindowId, index: -1 });
+                  } catch (e) { console.warn("[tabehameha] Failed pre-moving cross-window tab safety pass", e); }
+                }
+              }
+            }
+
+            groupId = await chrome.tabs.group({ tabIds: tabIds });
 
             const freshColor = await getDistinctColor();
             await chrome.tabGroups.update(groupId, {
               title: targetTitle,
               color: freshColor
             });
-            console.log(`[tabehameha] Successfully established group ID ${groupId} with visual code color: "${freshColor}"`);
           }
+
+          // Apply collapse preference setting to the group
+          await chrome.tabGroups.update(groupId, { collapsed: settings.collapseGroups });
+
         } catch (err) {
           console.error(`[tabehameha] Critical cluster alignment execution failure for host "${host}":`, err);
         }
