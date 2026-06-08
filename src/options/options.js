@@ -1,5 +1,6 @@
 function saveOptions() {
   const enableVault = document.getElementById('enableVault').checked;
+  const enableFocusZones = document.getElementById('enableFocusZones').checked;
   const delayValue = parseInt(document.getElementById('delayValue').value, 10) || 60;
   const delayUnit = document.getElementById('delayUnit').value;
   const vaultValue = parseInt(document.getElementById('vaultValue').value, 10) || 4;
@@ -14,6 +15,7 @@ function saveOptions() {
 
   chrome.storage.sync.set({
     enableVault,
+    enableFocusZones,
     delayValue,
     delayUnit,
     vaultValue,
@@ -35,6 +37,7 @@ function saveOptions() {
 function restoreOptions() {
   chrome.storage.sync.get({
     enableVault: true,
+    enableFocusZones: true,
     delayValue: 60,
     delayUnit: 'minute',
     vaultValue: 4,
@@ -48,6 +51,7 @@ function restoreOptions() {
     minTitleLength: 7
   }, (items) => {
     document.getElementById('enableVault').checked = items.enableVault;
+    document.getElementById('enableFocusZones').checked = items.enableFocusZones;
     document.getElementById('delayValue').value = items.delayValue;
     document.getElementById('delayUnit').value = items.delayUnit;
     document.getElementById('vaultValue').value = items.vaultValue;

@@ -67,17 +67,78 @@ export async function getDistinctColor() {
   }
 }
 
+// Map tabs that share implicit context relationships via History analysis
+async function runContextualClustering(tabs, settings, now) {
+  const contextualBuckets = {};
+
+  // Look back into history for the last 3 hours to capture active research journeys
+  const lookbackPeriod = 3 * 60 * 60 * 1000;
+  const historyItems = await chrome.history.search({
+    text: '',
+    startTime: now - lookbackPeriod,
+    maxResults: 200
+  });
+
+  // Create a fast lookup map of recent transitions
+  const historyUrls = new Set(historyItems.map(item => item.url));
+
+  for (const tab of tabs) {
+    if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) continue;
+    if (tab.active || (tab.pinned && !settings.includePinned)) continue;
+    if (tab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE && !settings.regroupExisting) continue;
+
+    let recognizedContext = null;
+
+    // Sub-rule A: Native structural parent child relationship tracking
+    if (tab.openerTabId) {
+      try {
+        const parentTab = await chrome.tabs.get(tab.openerTabId);
+        if (parentTab && parentTab.url) {
+          const parentHost = getNormalizedHost(parentTab.url);
+          if (parentHost) recognizedContext = `Journey: ${parentHost}`;
+        }
+      } catch (e) { /* Parent tab was closed */ }
+    }
+
+    // Sub-rule B: Search Engine Query extraction for programmatic intent discovery
+    if (!recognizedContext && (tab.url.includes('google.com/search') || tab.url.includes('bing.com/search'))) {
+      try {
+        const urlObj = new URL(tab.url);
+        const queryParam = urlObj.searchParams.get('q');
+        if (queryParam && queryParam.trim().length > 0) {
+          recognizedContext = `Search: "${queryParam.trim().substring(0, 15)}..."`;
+        }
+      } catch (e) {}
+    }
+
+    // Assign to Context-Aware zones if tracking matched history paths
+    if (recognizedContext) {
+      const winKey = settings.crossWindow ? 'global' : tab.windowId;
+      const incognitoKey = tab.incognito ? 'private' : 'standard';
+
+      if (!contextualBuckets[winKey]) contextualBuckets[winKey] = {};
+      if (!contextualBuckets[winKey][incognitoKey]) contextualBuckets[winKey][incognitoKey] = {};
+      if (!contextualBuckets[winKey][incognitoKey][recognizedContext]) {
+        contextualBuckets[winKey][incognitoKey][recognizedContext] = [];
+      }
+      contextualBuckets[winKey][incognitoKey][recognizedContext].push(tab);
+    }
+  }
+
+  return contextualBuckets;
+}
+
 export async function blastTabClutter() {
   const executionTime = new Date();
   const now = executionTime.getTime();
 
-  // Launch toolbar badge animation sequence
   flashToolbarAnimation();
 
   console.log(`[tabehameha] [${executionTime.toISOString()}] 🚀 Initiating autonomous clustering & vaulting pass...`);
 
   const settings = await chrome.storage.sync.get({
     enableVault: true,
+    enableFocusZones: true, // Master focus zone toggle option
     delayValue: 60,
     delayUnit: 'minute',
     vaultValue: 4,
@@ -122,9 +183,17 @@ export async function blastTabClutter() {
   });
 
   const tabs = await chrome.tabs.query({});
-  const buckets = {};
+  const standardBuckets = {};
   const tabsToVault = [];
+  const processedContextTabIds = new Set();
 
+  // FIRST RECON PASS: Adaptive Focus Zones (Context Tracking)
+  let contextualBuckets = {};
+  if (settings.enableFocusZones) {
+    contextualBuckets = await runContextualClustering(tabs, settings, now);
+  }
+
+  // SECOND RECON PASS: Build out Vault arrays and fallbacks
   for (const tab of tabs) {
     if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) continue;
     if (tab.active) continue;
@@ -135,7 +204,7 @@ export async function blastTabClutter() {
     if (!normHost) continue;
     if (exclusions.some(exc => normHost === exc || normHost.endsWith('.' + exc))) continue;
 
-    // Check deep inactivity for Vault Archiving (Only if Vault feature switch is true)
+    // Check deep inactivity for Vault Archiving
     if (settings.enableVault && lastAccessed <= vaultCutoff) {
       tabsToVault.push({
         id: tab.id,
@@ -148,26 +217,42 @@ export async function blastTabClutter() {
       continue;
     }
 
-    // Check standard intermediate inactivity for Tab Grouping
-    if (lastAccessed <= groupCutoff) {
+    // Process context-aware matching tabs first if present
+    let assignedToContext = false;
+    if (settings.enableFocusZones) {
+      const winKey = settings.crossWindow ? 'global' : tab.windowId;
+      const incognitoKey = tab.incognito ? 'private' : 'standard';
+      if (contextualBuckets[winKey] && contextualBuckets[winKey][incognitoKey]) {
+        for (const zoneTitle of Object.keys(contextualBuckets[winKey][incognitoKey])) {
+          const matchedZoneTabs = contextualBuckets[winKey][incognitoKey][zoneTitle];
+          if (matchedZoneTabs.some(t => t.id === tab.id) && matchedZoneTabs.length >= 2) {
+            assignedToContext = true;
+            processedContextTabIds.add(tab.id);
+            break;
+          }
+        }
+      }
+    }
+
+    // Fall back to standard domain idle grouping if not swept up by focus zones
+    if (!assignedToContext && lastAccessed <= groupCutoff) {
       if (tab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE && !settings.regroupExisting) continue;
 
       const winKey = settings.crossWindow ? 'global' : tab.windowId;
       const incognitoKey = tab.incognito ? 'private' : 'standard';
 
-      if (!buckets[winKey]) buckets[winKey] = {};
-      if (!buckets[winKey][incognitoKey]) buckets[winKey][incognitoKey] = {};
-      if (!buckets[winKey][incognitoKey][normHost]) buckets[winKey][incognitoKey][normHost] = [];
+      if (!standardBuckets[winKey]) standardBuckets[winKey] = {};
+      if (!standardBuckets[winKey][incognitoKey]) standardBuckets[winKey][incognitoKey] = {};
+      if (!standardBuckets[winKey][incognitoKey][normHost]) standardBuckets[winKey][incognitoKey][normHost] = [];
 
-      buckets[winKey][incognitoKey][normHost].push(tab);
+      standardBuckets[winKey][incognitoKey][normHost].push(tab);
     }
   }
 
-  // EXECUTE VAULT ARCHIVING PASS
+  // EXECUTE VAULT ARCHIVING
   if (settings.enableVault && tabsToVault.length > 0) {
     const storageData = await chrome.storage.local.get({ vaultStack: [] });
     let updatedStack = [...tabsToVault, ...storageData.vaultStack];
-
     if (updatedStack.length > 500) updatedStack = updatedStack.slice(0, 500);
     await chrome.storage.local.set({ vaultStack: updatedStack });
 
@@ -175,62 +260,77 @@ export async function blastTabClutter() {
     await chrome.tabs.remove(tabIdsToClose);
   }
 
-  // EXECUTE STANDARD GROUPING SWEEP PASS
-  for (const winKey of Object.keys(buckets)) {
-    for (const incognitoKey of Object.keys(buckets[winKey])) {
-      for (const host of Object.keys(buckets[winKey][incognitoKey])) {
-        const matchingTabs = buckets[winKey][incognitoKey][host];
-        if (matchingTabs.length < 2) continue;
+  // HELP ENFORCEMENT ENGINE FUNCTION
+  async function applyChromeGrouping(winKey, incognitoKey, customGroupTitle, matchingTabs) {
+    if (matchingTabs.length < 2) return;
+    let tabIds = matchingTabs.map(t => t.id);
 
-        let tabIds = matchingTabs.map(t => t.id);
-        const targetTitle = determineGroupTitle(matchingTabs, host, settings.minTitleLength);
+    try {
+      let groupId;
+      const existingGroups = await chrome.tabGroups.query({
+        title: customGroupTitle,
+        windowId: winKey === 'global' ? undefined : parseInt(winKey, 10)
+      });
 
-        try {
-          let groupId;
-          const existingGroups = await chrome.tabGroups.query({
-            title: targetTitle,
-            windowId: winKey === 'global' ? undefined : parseInt(winKey, 10)
-          });
+      let matchedGroup = null;
+      for (const g of existingGroups) {
+        const gTabs = await chrome.tabs.query({ groupId: g.id });
+        if (gTabs.length > 0 && gTabs[0].incognito === (incognitoKey === 'private')) {
+          matchedGroup = g;
+          break;
+        }
+      }
 
-          let matchedGroup = null;
-          for (const g of existingGroups) {
-            const gTabs = await chrome.tabs.query({ groupId: g.id });
-            if (gTabs.length > 0 && gTabs[0].incognito === (incognitoKey === 'private')) {
-              matchedGroup = g;
-              break;
+      if (matchedGroup) {
+        if (settings.crossWindow) {
+          for (const tab of matchingTabs) {
+            if (tab.windowId !== matchedGroup.windowId) {
+              try { await chrome.tabs.move(tab.id, { windowId: matchedGroup.windowId, index: -1 }); } catch (e) {}
             }
           }
-
-          if (matchedGroup) {
-            if (settings.crossWindow) {
-              for (const tab of matchingTabs) {
-                if (tab.windowId !== matchedGroup.windowId) {
-                  try { await chrome.tabs.move(tab.id, { windowId: matchedGroup.windowId, index: -1 }); } catch (e) {}
-                }
-              }
+        }
+        groupId = await chrome.tabs.group({ tabIds: tabIds, groupId: matchedGroup.id });
+      } else {
+        const targetWindowId = matchingTabs[0].windowId;
+        if (settings.crossWindow) {
+          for (const tab of matchingTabs) {
+            if (tab.windowId !== targetWindowId) {
+              try { await chrome.tabs.move(tab.id, { windowId: targetWindowId, index: -1 }); } catch (e) {}
             }
-            groupId = await chrome.tabs.group({ tabIds: tabIds, groupId: matchedGroup.id });
-          } else {
-            const targetWindowId = matchingTabs[0].windowId;
-            if (settings.crossWindow) {
-              for (const tab of matchingTabs) {
-                if (tab.windowId !== targetWindowId) {
-                  try { await chrome.tabs.move(tab.id, { windowId: targetWindowId, index: -1 }); } catch (e) {}
-                }
-              }
-            }
-            groupId = await chrome.tabs.group({ tabIds: tabIds });
-            const freshColor = await getDistinctColor();
-            await chrome.tabGroups.update(groupId, { title: targetTitle, color: freshColor });
           }
+        }
+        groupId = await chrome.tabs.group({ tabIds: tabIds });
+        const freshColor = await getDistinctColor();
+        await chrome.tabGroups.update(groupId, { title: customGroupTitle, color: freshColor });
+      }
+      await chrome.tabGroups.update(groupId, { collapsed: settings.collapseGroups });
+    } catch (err) {
+      console.error(`[tabehameha] Critical group assignment failure:`, err);
+    }
+  }
 
-          await chrome.tabGroups.update(groupId, { collapsed: settings.collapseGroups });
-
-        } catch (err) {
-          console.error(`[tabehameha] Critical group assignment failure:`, err);
+  // EXECUTE CONTEXTUAL GROUPING DEPLOYMENTS FIRST
+  if (settings.enableFocusZones) {
+    for (const winKey of Object.keys(contextualBuckets)) {
+      for (const incognitoKey of Object.keys(contextualBuckets[winKey])) {
+        for (const zoneTitle of Object.keys(contextualBuckets[winKey][incognitoKey])) {
+          const zoneTabs = contextualBuckets[winKey][incognitoKey][zoneTitle];
+          await applyChromeGrouping(winKey, incognitoKey, zoneTitle, zoneTabs);
         }
       }
     }
   }
+
+  // EXECUTE DOMAIN PATTERN SWEETS SECOND
+  for (const winKey of Object.keys(standardBuckets)) {
+    for (const incognitoKey of Object.keys(standardBuckets[winKey])) {
+      for (const host of Object.keys(standardBuckets[winKey][incognitoKey])) {
+        const matchingTabs = standardBuckets[winKey][incognitoKey][host];
+        const targetTitle = determineGroupTitle(matchingTabs, host, settings.minTitleLength);
+        await applyChromeGrouping(winKey, incognitoKey, targetTitle, matchingTabs);
+      }
+    }
+  }
+
   console.log(`[tabehameha] [${executionTime.toISOString()}] 🏁 Cluster & Vault sweep pass completed.`);
 }

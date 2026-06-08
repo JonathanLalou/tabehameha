@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const syncSettings = await chrome.storage.sync.get({ enableVault: true });
 
   if (!syncSettings.enableVault) {
-    document.getElementById('vaultBulkActions').style.style.display = 'none';
+    document.getElementById('vaultBulkActions').style.display = 'none';
     document.getElementById('searchVault').style.display = 'none';
     document.getElementById('vaultList').style.display = 'none';
     document.getElementById('vaultDisabledMessage').style.display = 'block';
