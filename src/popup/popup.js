@@ -1,44 +1,76 @@
-document.addEventListener('DOMContentLoaded', () => {
-  renderVault();
+document.addEventListener('DOMContentLoaded', async () => {
+  const syncSettings = await chrome.storage.sync.get({ enableVault: true });
 
-  // Manual execution override anchor
+  if (!syncSettings.enableVault) {
+    document.getElementById('vaultBulkActions').style.style.display = 'none';
+    document.getElementById('searchVault').style.display = 'none';
+    document.getElementById('vaultList').style.display = 'none';
+    document.getElementById('vaultDisabledMessage').style.display = 'block';
+    document.getElementById('vaultCount').textContent = '-';
+  } else {
+    renderVault();
+
+    document.getElementById('searchVault').addEventListener('input', (e) => {
+      renderVault(e.target.value.toLowerCase());
+    });
+
+    // Bulk Restore Event Listener
+    document.getElementById('restoreAllBtn').addEventListener('click', async () => {
+      const storageData = await chrome.storage.local.get({ vaultStack: [] });
+      if (storageData.vaultStack.length === 0) return;
+
+      if (confirm(`Resurrect all ${storageData.vaultStack.length} tabs back into active browser windows?`)) {
+        for (const tabItem of storageData.vaultStack) {
+          try { await chrome.tabs.create({ url: tabItem.url, active: false }); } catch (e) {}
+        }
+        await chrome.storage.local.set({ vaultStack: [] });
+        renderVault();
+      }
+    });
+
+    // Bulk Purge Event Listener
+    document.getElementById('purgeAllBtn').addEventListener('click', async () => {
+      const storageData = await chrome.storage.local.get({ vaultStack: [] });
+      if (storageData.vaultStack.length === 0) return;
+
+      if (confirm("Permanently delete and erase all currently vaulted items? This cannot be undone.")) {
+        await chrome.storage.local.set({ vaultStack: [] });
+        renderVault();
+      }
+    });
+  }
+
+  // Manual trigger routing override handler
   document.getElementById('manualSweep').addEventListener('click', async () => {
     const sweepBtn = document.getElementById('manualSweep');
     sweepBtn.textContent = 'Sweeping...';
     sweepBtn.disabled = true;
-    
-    // Import module context background channels programmatically via service-worker message dispatch
+
     chrome.runtime.sendMessage({ action: 'triggerSweep' }, () => {
       setTimeout(() => {
         sweepBtn.textContent = 'Sweep Now';
         sweepBtn.disabled = false;
-        renderVault();
-      }, 1000);
+        if (syncSettings.enableVault) renderVault();
+      }, 1200);
     });
   });
 
-  // Settings redirect
   document.getElementById('openOptions').addEventListener('click', (e) => {
     e.preventDefault();
     chrome.runtime.openOptionsPage();
-  });
-
-  // Live filter lookup engine
-  document.getElementById('searchVault').addEventListener('input', (e) => {
-    const query = e.target.value.toLowerCase();
-    renderVault(query);
   });
 });
 
 async function renderVault(filterQuery = '') {
   const listElement = document.getElementById('vaultList');
   const countElement = document.getElementById('vaultCount');
-  
+  if (!listElement) return;
+
   const storageData = await chrome.storage.local.get({ vaultStack: [] });
   const records = storageData.vaultStack;
 
-  const filtered = records.filter(item => 
-    item.title.toLowerCase().includes(filterQuery) || 
+  const filtered = records.filter(item =>
+    item.title.toLowerCase().includes(filterQuery) ||
     item.url.toLowerCase().includes(filterQuery)
   );
 
@@ -50,19 +82,17 @@ async function renderVault(filterQuery = '') {
     return;
   }
 
-  filtered.forEach((tabItem, renderedIndex) => {
+  filtered.forEach((tabItem) => {
     const li = document.createElement('li');
     li.className = 'vault-item';
 
-    // Information container block
     const infoDiv = document.createElement('div');
     infoDiv.className = 'tab-info';
     infoDiv.title = `Click to resurrect: ${tabItem.url}`;
-    
+
     const icon = document.createElement('img');
     icon.className = 'tab-icon';
     icon.src = tabItem.favIconUrl || '../assets/tamehameha-48.png';
-    // Graceful fallback image error block
     icon.onerror = () => { icon.src = '../assets/tamehameha-48.png'; };
 
     const titleSpan = document.createElement('span');
@@ -72,18 +102,18 @@ async function renderVault(filterQuery = '') {
     infoDiv.appendChild(icon);
     infoDiv.appendChild(titleSpan);
 
-    // Resurrect action hook
+    // Row Click: Resurrect tab
     infoDiv.addEventListener('click', async () => {
       await chrome.tabs.create({ url: tabItem.url, active: true });
       await deleteVaultItem(tabItem.vaultedAt, tabItem.url);
       renderVault(filterQuery);
     });
 
-    // Individual delete purge button
+    // Close Button Click: Forget tab permanently without opening
     const delBtn = document.createElement('button');
     delBtn.className = 'btn-delete';
     delBtn.innerHTML = '&times;';
-    delBtn.title = 'Purge record permanently';
+    delBtn.title = 'Forget tab entry permanently';
     delBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       await deleteVaultItem(tabItem.vaultedAt, tabItem.url);
@@ -98,7 +128,6 @@ async function renderVault(filterQuery = '') {
 
 async function deleteVaultItem(vaultedAt, url) {
   const storageData = await chrome.storage.local.get({ vaultStack: [] });
-  // Filter using unique composite key signatures
   const filteredStack = storageData.vaultStack.filter(item => !(item.vaultedAt === vaultedAt && item.url === url));
   await chrome.storage.local.set({ vaultStack: filteredStack });
 }

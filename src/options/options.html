@@ -2,92 +2,104 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>tabehameha — Settings</title>
-    <link rel="stylesheet" href="options.css">
+    <title>tabehameha Options</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background-color: #f4f7f6; color: #333; margin: 0; padding: 40px 20px; }
+        .container { max-width: 580px; margin: 0 auto; background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        h1 { margin-top: 0; font-size: 1.6rem; color: #1a1a2e; border-bottom: 2px solid #f4f7f6; padding-bottom: 10px; }
+        .form-group { margin-bottom: 20px; display: flex; flex-direction: column; gap: 6px; }
+        label { font-weight: 600; font-size: 0.95rem; }
+        .split-input-wrapper { display: flex; gap: 10px; }
+        input[type="number"], select, textarea { padding: 8px 12px; border: 1px solid #ced4da; border-radius: 4px; font-size: 0.9rem; outline: none; }
+        input[type="number"] { width: 80px; }
+        select { flex: 1; }
+        textarea { width: 100%; height: 60px; resize: vertical; box-sizing: border-box; }
+        .checkbox-group { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+        .checkbox-group label { font-weight: normal; font-size: 0.9rem; cursor: pointer; }
+        input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
+        small { color: #6c757d; font-size: 0.8rem; }
+        .btn-save { background-color: #4a90e2; color: #fff; border: none; padding: 10px 20px; font-size: 1rem; border-radius: 4px; cursor: pointer; font-weight: 600; transition: background 0.2s; margin-top: 10px; }
+        .btn-save:hover { background-color: #357abd; }
+        .status-msg { margin-top: 10px; font-size: 0.9rem; color: #28a745; font-weight: 500; min-height: 20px; }
+    </style>
 </head>
 <body>
 <div class="container">
-    <header>
-        <h1>⚡ tabehameha</h1>
-        <p class="subtitle">Autonomous Tab Clustering Engine</p>
-    </header>
-    <main>
-        <section class="card">
-            <h2>⏱️ Timing Thresholds</h2>
-            <div class="form-group split-time-container">
-                <label for="delayValue">Blast idle tabs after they are inactive for:</label>
-                <div class="split-input-wrapper">
-                    <input type="number" id="delayValue" min="1" value="60">
-                    <select id="delayUnit">
-                        <option value="second">Seconds</option>
-                        <option value="minute" selected>Minutes</option>
-                        <option value="hour">Hours</option>
-                        <option value="day">Days</option>
-                    </select>
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="minTitleLength">Minimum matching title character threshold:</label>
-                <input type="number" id="minTitleLength" min="3" max="50" value="7">
-                <small>If titles share this prefix length, the group takes it; else domain fallback is used.</small>
-            </div>
-            <div class="form-group split-time-container" style="margin-top: 15px; border-top: 1px dashed #eef2f5; padding-top: 15px;">
-                <label for="vaultValue">🔒 Deeply Archiving Vault threshold:</label>
-                <div class="split-input-wrapper">
-                    <input type="number" id="vaultValue" min="1" value="4">
-                    <select id="vaultUnit">
-                        <option value="second">Seconds</option>
-                        <option value="minute">Minutes</option>
-                        <option value="hour" selected>Hours</option>
-                        <option value="day">Days</option>
-                    </select>
-                </div>
-                <small>Tabs stagnant beyond this point have their metrics securely cached, and the tab is terminated to free memory.</small>
-            </div>
-        </section>
+    <h1>⚙️ tabehameha Settings</h1>
 
-        <section class="card">
-            <h2>⚙️ Behavior & Scope Controls</h2>
+    <div class="checkbox-group">
+        <input type="checkbox" id="enableVault" checked>
+        <label for="enableVault"><strong>Enable "The Vault" Memory Preservation feature</strong></label>
+    </div>
 
-            <div class="checkbox-group">
-                <input type="checkbox" id="collapseGroups">
-                <label for="collapseGroups">Collapse groups automatically when clustered</label>
-            </div>
-
-            <div class="checkbox-group">
-                <input type="checkbox" id="crossWindow">
-                <label for="crossWindow">Consolidate clusters across different windows</label>
-            </div>
-
-            <div class="checkbox-group">
-                <input type="checkbox" id="includePinned">
-                <label for="includePinned">Include pinned tabs in automated grouping cycles</label>
-            </div>
-
-            <div class="checkbox-group">
-                <input type="checkbox" id="regroupExisting">
-                <label for="regroupExisting">Allow re-grouping of tabs that are already grouped</label>
-            </div>
-        </section>
-
-        <section class="card">
-            <h2>🚫 Domain Exclusions</h2>
-            <label for="excludeHosts">Hosts to exclude completely (one domain per line):</label>
-            <textarea id="excludeHosts" placeholder="github.com&#10;localhost" rows="3"></textarea>
-        </section>
-
-        <section class="card">
-            <h2>🔗 Domain Consolidation Maps</h2>
-            <label for="hostAliases">Map custom hosts together into the same primary cluster:</label>
-            <textarea id="hostAliases" placeholder="cnn.us -> cnn.com&#10;edition.cnn.com -> cnn.com" rows="3"></textarea>
-            <small>Format: <code>source-domain -> target-domain</code></small>
-        </section>
-
-        <div class="actions">
-            <button id="saveBtn" class="btn primary">Save Changes</button>
-            <span id="statusMsg" class="status-msg"></span>
+    <div class="form-group">
+        <label for="delayValue">⏳ Standard Grouping Inactivity Threshold:</label>
+        <div class="split-input-wrapper">
+            <input type="number" id="delayValue" min="1" value="60">
+            <select id="delayUnit">
+                <option value="second">Seconds</option>
+                <option value="minute" selected>Minutes</option>
+                <option value="hour">Hours</option>
+                <option value="day">Days</option>
+            </select>
         </div>
-    </main>
+        <small>Tabs dormant longer than this value will be auto-sorted into matching groups.</small>
+    </div>
+
+    <div class="form-group">
+        <label for="vaultValue">🔒 Deep Archival Vault Threshold:</label>
+        <div class="split-input-wrapper">
+            <input type="number" id="vaultValue" min="1" value="4">
+            <select id="vaultUnit">
+                <option value="second">Seconds</option>
+                <option value="minute">Minutes</option>
+                <option value="hour" selected>Hours</option>
+                <option value="day">Days</option>
+            </select>
+        </div>
+        <small>Dormant tabs passing this threshold are written to local storage and closed to free RAM memory.</small>
+    </div>
+
+    <div class="form-group">
+        <label for="excludeHosts">🚫 Excluded Hosts / Domains:</label>
+        <textarea id="excludeHosts" placeholder="example.com, github.com"></textarea>
+        <small>Comma-separated list of domains that should never be modified or archived.</small>
+    </div>
+
+    <div class="form-group">
+        <label for="hostAliases">🗺️ Custom Domain Rule Aliases:</label>
+        <textarea id="hostAliases" placeholder="jira.company.com -> company-work; confluence.company.com -> company-work"></textarea>
+        <small>Route different subdomains into single target groups using the syntax: <code>alias -> target</code> (semicolon separated).</small>
+    </div>
+
+    <div class="checkbox-group">
+        <input type="checkbox" id="crossWindow">
+        <label for="crossWindow">Consolidate matches across different windows</label>
+    </div>
+
+    <div class="checkbox-group">
+        <input type="checkbox" id="includePinned">
+        <label for="includePinned">Include pinned tabs in calculations</label>
+    </div>
+
+    <div class="checkbox-group">
+        <input type="checkbox" id="regroupExisting">
+        <label for="regroupExisting">Re-evaluate and modify tabs already inside a group</label>
+    </div>
+
+    <div class="checkbox-group">
+        <input type="checkbox" id="collapseGroups" checked>
+        <label for="collapseGroups">Automatically collapse generated groups</label>
+    </div>
+
+    <div class="form-group">
+        <label for="minTitleLength">🔤 Minimum Common Title Prefix Length:</label>
+        <input type="number" id="minTitleLength" min="3" value="7">
+        <small>Characters required to form a title prefix group name instead of a base domain name.</small>
+    </div>
+
+    <button id="save" class="btn-save">Save Settings</button>
+    <div id="status" class="status-msg"></div>
 </div>
 <script src="options.js"></script>
 </body>

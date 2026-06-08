@@ -11,10 +11,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
 });
 
-// Intercept message pipelines arriving from the Popup module layer
+// Responds to manual runtime execution calls from the popup interface
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'triggerSweep') {
     blastTabClutter().then(() => sendResponse({ status: 'complete' }));
-    return true; // Keeps channel asynchronous block active
+    return true;
   }
 });

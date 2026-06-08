@@ -1,5 +1,22 @@
 const CHROME_COLORS = ['grey', 'blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange'];
 
+// Triggers a lightweight pulsing visual animation on the extension's toolbar icon
+function flashToolbarAnimation() {
+  let count = 0;
+  const colors = ['#4a90e2', '#357abd', '#28a745', '#1a1a2e'];
+
+  chrome.action.setBadgeText({ text: '⚡' });
+
+  const intervalId = setInterval(() => {
+    chrome.action.setBadgeBackgroundColor({ color: colors[count % colors.length] });
+    count++;
+    if (count > 6) {
+      clearInterval(intervalId);
+      chrome.action.setBadgeText({ text: '' });
+    }
+  }, 2000 / 6); // Rapidly pulse over a 2-second cycle
+}
+
 export function getNormalizedHost(urlStr, hostAliases) {
   try {
     const url = new URL(urlStr);
@@ -53,13 +70,17 @@ export async function getDistinctColor() {
 export async function blastTabClutter() {
   const executionTime = new Date();
   const now = executionTime.getTime();
-  
+
+  // Launch toolbar badge animation sequence
+  flashToolbarAnimation();
+
   console.log(`[tabehameha] [${executionTime.toISOString()}] 🚀 Initiating autonomous clustering & vaulting pass...`);
 
   const settings = await chrome.storage.sync.get({
+    enableVault: true,
     delayValue: 60,
     delayUnit: 'minute',
-    vaultValue: 4, // Default: Vault after 4 hours
+    vaultValue: 4,
     vaultUnit: 'hour',
     excludeHosts: '',
     hostAliases: '',
@@ -83,13 +104,11 @@ export async function blastTabClutter() {
   const vaultValueParsed = parseInt(settings.vaultValue, 10) || 4;
   let vaultUnitInMs = 60 * 1000;
   if (settings.vaultUnit === 'second') vaultUnitInMs = 1000;
-  else if (settings.vaultUnit === 'minute') vaultUnitInMs = 60 * 1000;
+  if (settings.vaultUnit === 'minute') vaultUnitInMs = 60 * 1000;
   else if (settings.vaultUnit === 'hour') vaultUnitInMs = 60 * 60 * 1000;
   else if (settings.vaultUnit === 'day') vaultUnitInMs = 24 * 60 * 60 * 1000;
   const vaultDelayMs = vaultValueParsed * vaultUnitInMs;
   const vaultCutoff = now - vaultDelayMs;
-
-  console.log(`[tabehameha] Group Threshold: > ${delayValueParsed} ${settings.delayUnit}(s). Vault Threshold: > ${vaultValueParsed} ${settings.vaultUnit}(s).`);
 
   const exclusions = settings.excludeHosts.split(/[\n,]+/).map(h => h.trim().toLowerCase()).filter(h => h.length > 0);
   const aliasesMap = {};
@@ -105,11 +124,8 @@ export async function blastTabClutter() {
   const tabs = await chrome.tabs.query({});
   const buckets = {};
   const tabsToVault = [];
-  let scannedCount = 0;
-  let eligibleGroupCount = 0;
 
   for (const tab of tabs) {
-    scannedCount++;
     if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) continue;
     if (tab.active) continue;
     if (tab.pinned && !settings.includePinned) continue;
@@ -119,8 +135,8 @@ export async function blastTabClutter() {
     if (!normHost) continue;
     if (exclusions.some(exc => normHost === exc || normHost.endsWith('.' + exc))) continue;
 
-    // CRITICAL CRITERIA 1: Check deep inactivity for Vault Archiving first
-    if (lastAccessed <= vaultCutoff) {
+    // Check deep inactivity for Vault Archiving (Only if Vault feature switch is true)
+    if (settings.enableVault && lastAccessed <= vaultCutoff) {
       tabsToVault.push({
         id: tab.id,
         url: tab.url,
@@ -132,11 +148,10 @@ export async function blastTabClutter() {
       continue;
     }
 
-    // CRITERIA 2: Check standard intermediate inactivity for Tab Grouping
+    // Check standard intermediate inactivity for Tab Grouping
     if (lastAccessed <= groupCutoff) {
       if (tab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE && !settings.regroupExisting) continue;
 
-      eligibleGroupCount++;
       const winKey = settings.crossWindow ? 'global' : tab.windowId;
       const incognitoKey = tab.incognito ? 'private' : 'standard';
 
@@ -149,20 +164,15 @@ export async function blastTabClutter() {
   }
 
   // EXECUTE VAULT ARCHIVING PASS
-  if (tabsToVault.length > 0) {
-    console.log(`[tabehameha] Found ${tabsToVault.length} deeply idle tab(s) to vault.`);
+  if (settings.enableVault && tabsToVault.length > 0) {
     const storageData = await chrome.storage.local.get({ vaultStack: [] });
     let updatedStack = [...tabsToVault, ...storageData.vaultStack];
 
-    // Cap memory structure bounds to 500 records to prevent bloating sync profile channels
     if (updatedStack.length > 500) updatedStack = updatedStack.slice(0, 500);
-
     await chrome.storage.local.set({ vaultStack: updatedStack });
 
-    // Safely remove the original tabs to instantly liberate RAM allocations
     const tabIdsToClose = tabsToVault.map(t => t.id);
     await chrome.tabs.remove(tabIdsToClose);
-    console.log(`[tabehameha] Successfully archived metrics and terminated ${tabIdsToClose.length} bloated idle tabs.`);
   }
 
   // EXECUTE STANDARD GROUPING SWEEP PASS
@@ -217,7 +227,7 @@ export async function blastTabClutter() {
           await chrome.tabGroups.update(groupId, { collapsed: settings.collapseGroups });
 
         } catch (err) {
-          console.error(`[tabehameha] Critical group assignment failure for host "${host}":`, err);
+          console.error(`[tabehameha] Critical group assignment failure:`, err);
         }
       }
     }
