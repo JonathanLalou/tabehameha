@@ -18,7 +18,15 @@
     "open_in_tab": true
   },
   "action": {
-    "default_popup": "popup/popup.html"
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "48": "assets/tamehameha-48.png",
+      "96": "assets/tamehameha-96.png"
+    }
+  },
+  "icons": {
+    "48": "assets/tamehameha-48.png",
+    "96": "assets/tamehameha-96.png"
   },
   "incognito": "spanning"
 }
