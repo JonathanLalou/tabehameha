@@ -186,7 +186,20 @@ export async function blastTabClutter() {
             groupId = await chrome.tabs.group({ tabIds: tabIds, groupId: matchedGroup.id });
           } else {
             console.log(`[tabehameha] Creating new distinct cluster group for host context: "${targetTitle}"`);
-            groupId = await chrome.tabs.group({ tabIds: tabIds, windowId: winKey === 'global' ? undefined : parseInt(winKey) });
+
+            // FIXED: Omit windowId completely here. Passing tabIds alone creates a fresh group natively context-bound.
+            groupId = await chrome.tabs.group({ tabIds: tabIds });
+
+            // If crossWindow option is active and we are dealing with multiple windows under a 'global' bucket,
+            // we can optionally move the freshly generated group to a uniform window, but chrome.tabs.group itself handle creation perfectly.
+            if (winKey !== 'global') {
+              try {
+                await chrome.tabGroups.move(groupId, { windowId: parseInt(winKey), index: -1 });
+              } catch (moveErr) {
+                // If tabs are already in this window, moving might log a redundant warning; catch gracefully
+              }
+            }
+
             const freshColor = await getDistinctColor();
             await chrome.tabGroups.update(groupId, {
               title: targetTitle,
