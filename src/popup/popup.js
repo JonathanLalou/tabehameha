@@ -1,11 +1,19 @@
 document.addEventListener('DOMContentLoaded', async () => {
-  const syncSettings = await chrome.storage.sync.get({ enableVault: true });
+  const syncSettings = await chrome.storage.sync.get({ dormancyMode: 'sleep' });
 
-  if (!syncSettings.enableVault) {
+  if (syncSettings.dormancyMode !== 'archive') {
     document.getElementById('vaultBulkActions').style.display = 'none';
     document.getElementById('searchVault').style.display = 'none';
     document.getElementById('vaultList').style.display = 'none';
-    document.getElementById('vaultDisabledMessage').style.display = 'block';
+
+    const messagePanel = document.getElementById('vaultDisabledMessage');
+    messagePanel.style.display = 'block';
+
+    if (syncSettings.dormancyMode === 'sleep') {
+      messagePanel.innerHTML = '🧠 <strong>Native Sleep Active</strong><br><span style="font-size:0.8rem; color:#6c757d;">Tabs are frozen directly on the tab strip to optimize system RAM while keeping them visible.</span>';
+    } else {
+      messagePanel.textContent = 'Dormancy tracking is currently disabled.';
+    }
     document.getElementById('vaultCount').textContent = '-';
   } else {
     renderVault();
@@ -14,12 +22,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       renderVault(e.target.value.toLowerCase());
     });
 
-    // Bulk Restore Event Listener
     document.getElementById('restoreAllBtn').addEventListener('click', async () => {
       const storageData = await chrome.storage.local.get({ vaultStack: [] });
       if (storageData.vaultStack.length === 0) return;
 
-      if (confirm(`Resurrect all ${storageData.vaultStack.length} tabs back into active browser windows?`)) {
+      if (confirm(`Restore all ${storageData.vaultStack.length} tabs back to window slots?`)) {
         for (const tabItem of storageData.vaultStack) {
           try { await chrome.tabs.create({ url: tabItem.url, active: false }); } catch (e) {}
         }
@@ -28,19 +35,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
-    // Bulk Purge Event Listener
     document.getElementById('purgeAllBtn').addEventListener('click', async () => {
       const storageData = await chrome.storage.local.get({ vaultStack: [] });
       if (storageData.vaultStack.length === 0) return;
 
-      if (confirm("Permanently delete and erase all currently vaulted items? This cannot be undone.")) {
+      if (confirm("Permanently erase the entire vault history archive?")) {
         await chrome.storage.local.set({ vaultStack: [] });
         renderVault();
       }
     });
   }
 
-  // Manual trigger routing override handler
   document.getElementById('manualSweep').addEventListener('click', async () => {
     const sweepBtn = document.getElementById('manualSweep');
     sweepBtn.textContent = 'Sweeping...';
@@ -50,7 +55,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       setTimeout(() => {
         sweepBtn.textContent = 'Sweep Now';
         sweepBtn.disabled = false;
-        if (syncSettings.enableVault) renderVault();
+        if (syncSettings.dormancyMode === 'archive') renderVault();
       }, 1200);
     });
   });
@@ -78,7 +83,7 @@ async function renderVault(filterQuery = '') {
   listElement.innerHTML = '';
 
   if (filtered.length === 0) {
-    listElement.innerHTML = `<li class="empty-state">${filterQuery ? 'No matching tabs found.' : 'The Vault is empty.'}</li>`;
+    listElement.innerHTML = `<li class="empty-state">${filterQuery ? 'No matches found.' : 'The Vault archive is empty.'}</li>`;
     return;
   }
 
@@ -88,7 +93,6 @@ async function renderVault(filterQuery = '') {
 
     const infoDiv = document.createElement('div');
     infoDiv.className = 'tab-info';
-    infoDiv.title = `Click to resurrect: ${tabItem.url}`;
 
     const icon = document.createElement('img');
     icon.className = 'tab-icon';
@@ -102,18 +106,15 @@ async function renderVault(filterQuery = '') {
     infoDiv.appendChild(icon);
     infoDiv.appendChild(titleSpan);
 
-    // Row Click: Resurrect tab
     infoDiv.addEventListener('click', async () => {
       await chrome.tabs.create({ url: tabItem.url, active: true });
       await deleteVaultItem(tabItem.vaultedAt, tabItem.url);
       renderVault(filterQuery);
     });
 
-    // Close Button Click: Forget tab permanently without opening
     const delBtn = document.createElement('button');
     delBtn.className = 'btn-delete';
     delBtn.innerHTML = '&times;';
-    delBtn.title = 'Forget tab entry permanently';
     delBtn.addEventListener('click', async (e) => {
       e.stopPropagation();
       await deleteVaultItem(tabItem.vaultedAt, tabItem.url);

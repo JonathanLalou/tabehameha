@@ -28,14 +28,14 @@
 <div class="container">
     <h1>⚙️ tabehameha Settings</h1>
 
-    <div class="checkbox-group">
-        <input type="checkbox" id="enableVault" checked>
-        <label for="enableVault"><strong>Enable "The Vault" Memory Preservation feature</strong></label>
-    </div>
-
-    <div class="checkbox-group">
-        <input type="checkbox" id="enableFocusZones" checked>
-        <label for="enableFocusZones"><strong>Enable Adaptive Focus Zones (Predictive Context-Grouping)</strong></label>
+    <div class="form-group">
+        <label for="dormancyMode">🧠 Deep Dormancy Strategy Engine Mode:</label>
+        <select id="dormancyMode">
+            <option value="disabled">Disabled (No Deep Dormancy Actions)</option>
+            <option value="sleep" selected>Native Sleep Mode (Purge RAM, Keep Visual Tabs)</option>
+            <option value="archive">Hard Archival Vault Mode (Close Tabs, Move to Recovery Stack)</option>
+        </select>
+        <small>Control how aggressive the optimization engine handles hyper-dormant tabs.</small>
     </div>
 
     <div class="section-divider"></div>
@@ -51,11 +51,11 @@
                 <option value="day">Days</option>
             </select>
         </div>
-        <small>Tabs dormant longer than this value will be auto-sorted into matching domain groups if no shared focus session matches.</small>
+        <small>Tabs dormant longer than this value will be compiled into structured domain clusters.</small>
     </div>
 
     <div class="form-group">
-        <label for="vaultValue">🔒 Deep Archival Vault Threshold:</label>
+        <label for="vaultValue">🕒 Deep Dormancy Inactivity Trigger Line:</label>
         <div class="split-input-wrapper">
             <input type="number" id="vaultValue" min="1" value="4">
             <select id="vaultUnit">
@@ -65,19 +65,19 @@
                 <option value="day">Days</option>
             </select>
         </div>
-        <small>Dormant tabs passing this threshold are written to local storage and closed to free RAM memory.</small>
+        <small>The advanced timeframe timeline used to execute your Sleep or Archival choice above.</small>
     </div>
 
     <div class="form-group">
         <label for="excludeHosts">🚫 Excluded Hosts / Domains:</label>
         <textarea id="excludeHosts" placeholder="example.com, github.com"></textarea>
-        <small>Comma-separated list of domains that should never be modified or archived.</small>
+        <small>Comma-separated list of domains that should never be modified, slept, or archived.</small>
     </div>
 
     <div class="form-group">
         <label for="hostAliases">🗺️ Custom Domain Rule Aliases:</label>
         <textarea id="hostAliases" placeholder="jira.company.com -> company-work; confluence.company.com -> company-work"></textarea>
-        <small>Route different subdomains into single target groups using the syntax: <code>alias -> target</code> (semicolon separated).</small>
+        <small>Route different subdomains into single target groups using the syntax: <code>alias -> target</code>.</small>
     </div>
 
     <div class="checkbox-group">
@@ -103,7 +103,7 @@
     <div class="form-group">
         <label for="minTitleLength">🔤 Minimum Common Title Prefix Length:</label>
         <input type="number" id="minTitleLength" min="3" value="7">
-        <small>Characters required to form a title prefix group name instead of a base domain name.</small>
+        <small>Characters required to form a custom title prefix group name instead of a base domain name.</small>
     </div>
 
     <button id="save" class="btn-save">Save Settings</button>
