@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "tabehameha",
+  "version": "1.0.0",
+  "description": "[Hackathon2026] Blasts tab clutter away by automatically grouping inactive tabs by domain or common title prefixes.",
+  "permissions": [
+    "tabs",
+    "tabGroups",
+    "storage",
+    "alarms"
+  ],
+  "background": {
+    "service_worker": "background/background.js",
+    "type": "module"
+  },
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "action": {
+    "default_popup": "popup/popup.html"
+  },
+  "incognito": "spanning"
+}

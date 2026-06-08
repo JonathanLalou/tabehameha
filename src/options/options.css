@@ -1,0 +1,26 @@
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background-color: #f4f6f9;
+  color: #333;
+  margin: 0;
+  padding: 40px 20px;
+}
+.container { max-width: 650px; margin: 0 auto; }
+header { margin-bottom: 30px; text-align: center; }
+header h1 { font-size: 2.2rem; margin: 0; color: #1a1a2e; font-weight: 800; }
+.subtitle { font-size: 1rem; color: #6c757d; }
+.card { background: #fff; border-radius: 12px; padding: 24px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); border: 1px solid #eef2f5; }
+.card h2 { font-size: 1.15rem; margin-top: 0; color: #1a1a2e; border-bottom: 2px solid #f4f6f9; padding-bottom: 10px; }
+.form-group { margin-bottom: 18px; }
+label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 0.95rem; }
+input[type="number"], textarea { width: 100%; padding: 10px; border: 1px solid #ced4da; border-radius: 6px; font-size: 0.95rem; box-sizing: border-box; background-color: #fafbfc; }
+textarea { font-family: monospace; resize: vertical; }
+small { display: block; color: #6c757d; margin-top: 5px; font-size: 0.85rem; }
+.checkbox-group { display: flex; align-items: center; margin-bottom: 14px; }
+.checkbox-group input { margin-right: 12px; transform: scale(1.15); cursor: pointer; }
+.checkbox-group label { font-weight: 500; cursor: pointer; }
+.actions { display: flex; align-items: center; gap: 15px; }
+.btn { padding: 12px 28px; font-size: 1rem; font-weight: 600; border-radius: 6px; border: none; cursor: pointer; }
+.btn.primary { background-color: #4a90e2; color: white; }
+.btn.primary:hover { background-color: #357abd; }
+.status-msg { font-size: 0.95rem; color: #28a745; font-weight: 500; }
