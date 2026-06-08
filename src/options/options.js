@@ -6,7 +6,6 @@ function saveOptions() {
   const crossWindow = document.getElementById('crossWindow').checked;
   const includePinned = document.getElementById('includePinned').checked;
   const regroupExisting = document.getElementById('regroupExisting').checked;
-  const extractOnAccess = document.getElementById('extractOnAccess').checked;
   const excludeHosts = document.getElementById('excludeHosts').value;
   const hostAliases = document.getElementById('hostAliases').value;
 
@@ -20,7 +19,6 @@ function saveOptions() {
     crossWindow,
     includePinned,
     regroupExisting,
-    extractOnAccess,
     excludeHosts,
     hostAliases
   }, () => {
@@ -40,7 +38,6 @@ function restoreOptions() {
     crossWindow: false,
     includePinned: false,
     regroupExisting: false,
-    extractOnAccess: false,
     excludeHosts: '',
     hostAliases: ''
   }, (items) => {
@@ -51,7 +48,6 @@ function restoreOptions() {
     document.getElementById('crossWindow').checked = items.crossWindow;
     document.getElementById('includePinned').checked = items.includePinned;
     document.getElementById('regroupExisting').checked = items.regroupExisting;
-    document.getElementById('extractOnAccess').checked = items.extractOnAccess;
     document.getElementById('excludeHosts').value = items.excludeHosts;
     document.getElementById('hostAliases').value = items.hostAliases;
     console.log("[tabehameha] Options UI populated successfully from local configurations.");

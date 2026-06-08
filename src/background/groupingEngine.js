@@ -1,5 +1,3 @@
-// src/background/groupingEngine.js
-
 const CHROME_COLORS = ['grey', 'blue', 'red', 'yellow', 'green', 'pink', 'purple', 'cyan', 'orange'];
 
 export function getNormalizedHost(urlStr, hostAliases) {
@@ -53,8 +51,11 @@ export async function getDistinctColor() {
 }
 
 export async function blastTabClutter() {
-  console.log("[tabehameha] Starting tab clustering sweep...");
-
+  const executionTime = new Date();
+  const now = executionTime.getTime();
+  
+  console.log(`[tabehameha] [${executionTime.toISOString()}] 🚀 Initiating autonomous clustering sweep pass...`);
+  
   const settings = await chrome.storage.sync.get({
     delayValue: 60,
     delayUnit: 'minute',
@@ -64,17 +65,20 @@ export async function blastTabClutter() {
     includePinned: false,
     regroupExisting: false,
     minTitleLength: 7,
-    collapseGroups: true // New configuration property
+    collapseGroups: true
   });
 
-  let unitInMs = 60 * 1000;
+  // Ensure values are parsed cleanly as accurate base-10 integers
+  const delayValueParsed = parseInt(settings.delayValue, 10) || 60;
+  let unitInMs = 60 * 1000; 
   if (settings.delayUnit === 'second') unitInMs = 1000;
   else if (settings.delayUnit === 'hour') unitInMs = 60 * 60 * 1000;
   else if (settings.delayUnit === 'day') unitInMs = 24 * 60 * 60 * 1000;
 
-  const totalDelayMs = settings.delayValue * unitInMs;
-  const now = Date.now();
+  const totalDelayMs = delayValueParsed * unitInMs;
   const cutoffTime = now - totalDelayMs;
+
+  console.log(`[tabehameha] [${executionTime.toISOString()}] Configured Threshold: Blast tabs inactive for > ${delayValueParsed} ${settings.delayUnit}(s) (${totalDelayMs} ms). Cutoff absolute timestamp: ${cutoffTime}`);
 
   const exclusions = settings.excludeHosts.split(/[\n,]+/).map(h => h.trim().toLowerCase()).filter(h => h.length > 0);
   const aliasesMap = {};
@@ -89,21 +93,31 @@ export async function blastTabClutter() {
 
   const tabs = await chrome.tabs.query({});
   const buckets = {};
+  let scannedCount = 0;
+  let eligibleCount = 0;
 
   tabs.forEach(tab => {
+    scannedCount++;
     if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) return;
     if (tab.active) return;
-
+    
+    // Fallback safely to current run time if lastAccessed metadata isn't initialized yet
     const lastAccessed = tab.lastAccessed || now;
-    if (lastAccessed > cutoffTime) return;
+    const idleDurationMs = now - lastAccessed;
+
+    if (lastAccessed > cutoffTime) {
+      // Debug statement to show exactly why a tab is discarded
+      console.log(`[tabehameha] Tab ID ${tab.id} ("${tab.title}") is safe. Idle duration: ${Math.round(idleDurationMs / 1000)}s (Required: ${totalDelayMs / 1000}s)`);
+      return;
+    }
     if (tab.pinned && !settings.includePinned) return;
     if (tab.groupId !== chrome.tabGroups.TAB_GROUP_ID_NONE && !settings.regroupExisting) return;
 
     const normHost = getNormalizedHost(tab.url, aliasesMap);
     if (!normHost) return;
-
     if (exclusions.some(exc => normHost === exc || normHost.endsWith('.' + exc))) return;
 
+    eligibleCount++;
     const winKey = settings.crossWindow ? 'global' : tab.windowId;
     const incognitoKey = tab.incognito ? 'private' : 'standard';
 
@@ -113,6 +127,8 @@ export async function blastTabClutter() {
 
     buckets[winKey][incognitoKey][normHost].push(tab);
   });
+
+  console.log(`[tabehameha] [${executionTime.toISOString()}] Scanned ${scannedCount} total tabs. Found ${eligibleCount} idle tabs matching threshold constraints.`);
 
   for (const winKey of Object.keys(buckets)) {
     for (const incognitoKey of Object.keys(buckets[winKey])) {
@@ -127,7 +143,7 @@ export async function blastTabClutter() {
           let groupId;
           const existingGroups = await chrome.tabGroups.query({
             title: targetTitle,
-            windowId: winKey === 'global' ? undefined : parseInt(winKey)
+            windowId: winKey === 'global' ? undefined : parseInt(winKey, 10)
           });
 
           let matchedGroup = null;
@@ -140,28 +156,24 @@ export async function blastTabClutter() {
           }
 
           if (matchedGroup) {
-            // FIX MULTI-WINDOW: If crossWindow is true, explicitly move tabs to the target group's window first
             if (settings.crossWindow) {
               for (const tab of matchingTabs) {
                 if (tab.windowId !== matchedGroup.windowId) {
                   try {
                     await chrome.tabs.move(tab.id, { windowId: matchedGroup.windowId, index: -1 });
-                  } catch (e) { console.warn("[tabehameha] Failed pre-moving cross-window tab safety pass", e); }
+                  } catch (e) {}
                 }
               }
             }
             groupId = await chrome.tabs.group({ tabIds: tabIds, groupId: matchedGroup.id });
           } else {
-            // FIX MULTI-WINDOW: If creating a fresh group globally across multiple windows,
-            // explicitly consolidate all target tabs into the first tab's window prior to grouping
-            // so window-destruction closures won't interrupt the Chrome internal tab tracker.
             const targetWindowId = matchingTabs[0].windowId;
             if (settings.crossWindow) {
               for (const tab of matchingTabs) {
                 if (tab.windowId !== targetWindowId) {
                   try {
                     await chrome.tabs.move(tab.id, { windowId: targetWindowId, index: -1 });
-                  } catch (e) { console.warn("[tabehameha] Failed pre-moving cross-window tab safety pass", e); }
+                  } catch (e) {}
                 }
               }
             }
@@ -175,14 +187,13 @@ export async function blastTabClutter() {
             });
           }
 
-          // Apply collapse preference setting to the group
           await chrome.tabGroups.update(groupId, { collapsed: settings.collapseGroups });
 
         } catch (err) {
-          console.error(`[tabehameha] Critical cluster alignment execution failure for host "${host}":`, err);
+          console.error(`[tabehameha] Critical group assignment failure for host "${host}":`, err);
         }
       }
     }
   }
-  console.log("[tabehameha] Cluster sweep pass completed.");
+  console.log(`[tabehameha] [${executionTime.toISOString()}] 🏁 Cluster sweep pass completed.`);
 }
