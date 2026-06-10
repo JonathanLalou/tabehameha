@@ -51,9 +51,6 @@ Through the extension options page, you can fully adjust how aggressively `tabeh
 
 ## 🛠️ Technical Architecture & Engineering Choices
 
-
-```
-
 ```
    [ Browser Tab Strip ] <----------------------------------------+
              |                                                    |
@@ -66,8 +63,6 @@ Through the extension options page, you can fully adjust how aggressively `tabeh
     [ Evaluates Tiers ]                                           |
      /              \                                             |
     /                \                                            |
-
-```
 
 (Passed Group Cutoff)  (Passed Vault Cutoff)                          |
 /                    \                                          |
@@ -135,3 +130,23 @@ To prevent local memory leaks from unconstrained growth in **Hard Archival Vault
 2. Open Google Chrome (or any Chromium-based browser) and navigate to `chrome://extensions/`.
 3. Enable the **Developer mode** toggle switch in the upper right-hand corner.
 4. Click the **Load unpacked** button in the top left, select the root project directory containing the `manifest.json` file, and press open.
+
+---
+
+## Demo:
+
+Tabehameha demo:
+* 1: https://youtu.be/CKbfzsscoXo
+* 2: https://youtu.be/ibE_iEoEk6s
+* 3: https://youtu.be/fAjqnqjl_aI
+* Playlist: https://www.youtube.com/playlist?list=PLaEoX1O9ctgs
+
+Backup:
+* 1: https://youtu.be/GWcSg8-KjVA
+* 2: https://youtu.be/YjORoWc89Zg
+* 3: https://youtu.be/lZXmXs22hUE
+
+Loom:
+* 1: https://www.loom.com/share/87e18c22b8e64e0b84e1c19c6d886af4
+* 2: https://www.loom.com/share/bd6e2832a4724a83a4ddf53736b4eacf
+* 3: https://www.loom.com/share/42d480ea8b514c689f1bab484420b94e
